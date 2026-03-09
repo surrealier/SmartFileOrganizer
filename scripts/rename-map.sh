@@ -8,10 +8,11 @@ usage() {
 Usage: $(basename "$0") <command> <target-dir>
 
 Commands:
-  save     <dir>   Read rename map from stdin (JSON) and save to <dir>/$MAP_FILE
-  show     <dir>   Print the current rollback map
-  rollback <dir>   Undo all renames/moves recorded in the map
-  clear    <dir>   Delete the rollback map
+  save      <dir>   Read rename map from stdin (JSON) and save to <dir>/$MAP_FILE
+  show      <dir>   Print the current rollback map
+  rollback  <dir>   Undo all renames/moves recorded in the map
+  reconcile <dir>   Remove entries whose source still exists (rename never happened)
+  clear     <dir>   Delete the rollback map
 EOF
   exit 1
 }
@@ -80,6 +81,25 @@ for op in reversed(ops):
     else
       echo "No rollback map to clear."
     fi
+    ;;
+
+  reconcile)
+    if [[ ! -f "$MAP_PATH" ]]; then
+      echo "No rollback map found at $MAP_PATH"
+      exit 1
+    fi
+
+    # Remove entries where the original file still exists (rename never executed)
+    python3 -c "
+import json, os
+with open('$MAP_PATH') as f:
+    ops = json.load(f)
+kept = [op for op in ops if not os.path.exists(op['from'])]
+removed = len(ops) - len(kept)
+with open('$MAP_PATH', 'w') as f:
+    json.dump(kept, f, indent=2, ensure_ascii=False)
+print(f'Reconciled: {len(kept)} kept, {removed} removed (source still exists)')
+"
     ;;
 
   *)

@@ -36,6 +36,14 @@ Ask the user for:
    - Acronyms and proper nouns are exempt from translation (`IITP`, `YOLOv8`, etc.).
 4. **File filter** — specific extensions to include/exclude (default: all files).
 5. **Max depth** — how deep to recurse into subdirectories (default: unlimited).
+6. **Rename strictness** — how aggressively to rename files (default: `recovery`).
+   ```
+   How strictly should files be renamed?
+     [R] Recovery  — only fix broken/meaningless names, keep already-descriptive names as-is
+     [U] Uniform   — rename ALL files to a standardized format based on content
+   ```
+   - `recovery`: skip files whose current name already reasonably describes the content (even if format doesn't perfectly match the naming convention).
+   - `uniform`: treat every original name as unreliable and regenerate from scratch — current behavior.
 
 If the user provides a directory without specifying other options, use defaults and proceed.
 
@@ -83,6 +91,10 @@ If there are more than 100 files, ask the user to confirm before proceeding or s
 
 ### Step 3: Analyze File Contents
 
+> **Behavior depends on the rename strictness setting from Step 1.**
+
+#### When `uniform` mode:
+
 > **⚠ CRITICAL: ALL non-code files MUST be renamed to a normalized format based on their actual content. No exceptions.**
 >
 > - The original file name is **unreliable** — treat it as if it were random characters.
@@ -90,13 +102,26 @@ If there are more than 100 files, ask the user to confirm before proceeding or s
 > - Files with partially descriptive but non-standard names (e.g., `073_disaster_safety_XR.hwpx`, `report_v2_final.docx`) MUST still be renamed after reading their content.
 > - The ONLY reason to keep an original name is if it already perfectly matches the naming convention format AND accurately describes the specific content.
 
-**Rename criteria** — a file MUST be renamed if ANY of the following is true:
+**Rename criteria (uniform)** — a file MUST be renamed if ANY of the following is true:
 
 - Contains meaningless prefixes, serial numbers, or codes (`073_`, `IMG_`, `DSC_`, `001_`, `(3)`).
 - Name is vague, abbreviated, or doesn't capture the document's specific subject.
 - Doesn't follow the `[YYMMDD_]<attr1>_<attr2>[_...<attrN>].<ext>` format from `references/naming-conventions.md`.
 - Contains non-allowed language characters (per Step 1 language settings).
 - Contains generic words (`document`, `file`, `untitled`, `report`) without specific context.
+
+#### When `recovery` mode (default):
+
+> Only rename files with clearly broken or meaningless names. If the current name already conveys the file's content reasonably well, **keep it as-is** — even if it doesn't perfectly follow the naming convention format.
+
+**Rename criteria (recovery)** — a file is renamed ONLY if ANY of the following is true:
+
+- Name is entirely meaningless (e.g., `IMG_20240315_142356.jpg`, `document(3).pdf`, `a3f8c2.png`).
+- Name consists mostly of codes, hashes, or sequential numbers with no descriptive words.
+- Name is a single generic word (`untitled`, `file`, `new`, `temp`).
+- Contains non-allowed language characters (per Step 1 language settings).
+
+Files with partially descriptive names (e.g., `quarterly_report.pdf`, `meeting_notes_march.txt`) are **kept as-is** in recovery mode.
 
 For each file, read its content and determine a descriptive name:
 
@@ -203,18 +228,26 @@ corrupted-data.bin              → _unknown/corrupted-data.bin (reason: binary,
 
 Do NOT proceed to execution until the user gives explicit approval.
 
+**Pre-execution rollback map** — immediately after the user approves, save the planned rollback map BEFORE any file operations:
+
+```bash
+bash <skill-path>/scripts/rename-map.sh save <target-dir>
+```
+
+This creates `<target-dir>/.file-organizer-map.json` so that even if execution is interrupted mid-way, the user can still rollback completed operations.
+
 ### Step 5: Execute Renames
 
-After user approval:
+After the rollback map is saved:
 
-1. Save the rollback map to a JSON file using the helper script:
+1. Rename files one by one.
+2. Report progress and any errors (e.g., name conflicts, permission issues).
+3. On name conflict, append a numeric suffix: `report_Q3_2.pdf`.
+4. **Reconcile the rollback map** — after all renames complete, verify the map against actual filesystem state and remove entries for operations that did not execute:
    ```bash
-   bash <skill-path>/scripts/rename-map.sh save <target-dir>
+   bash <skill-path>/scripts/rename-map.sh reconcile <target-dir>
    ```
-   This creates `<target-dir>/.file-organizer-map.json` for rollback purposes.
-2. Rename files one by one.
-3. Report progress and any errors (e.g., name conflicts, permission issues).
-4. On name conflict, append a numeric suffix: `report_Q3_2.pdf`.
+   This ensures the rollback map only contains operations that actually happened.
 
 ### Step 6: Reorganize (full-organize mode only)
 
@@ -303,7 +336,7 @@ This file is overwritten on each run (previous logs are not preserved).
 The rollback map (`.file-organizer-map.json`) records every rename/move operation for undo purposes. The user can manage it with these commands:
 
 ```bash
-# Save current rename map (done automatically, but can be triggered manually)
+# Save current rename map (done automatically before execution)
 bash <skill-path>/scripts/rename-map.sh save <target-dir>
 
 # Show the current rollback map contents
@@ -311,6 +344,9 @@ bash <skill-path>/scripts/rename-map.sh show <target-dir>
 
 # Undo all renames/moves recorded in the map
 bash <skill-path>/scripts/rename-map.sh rollback <target-dir>
+
+# Reconcile map after execution (remove entries for operations that didn't happen)
+bash <skill-path>/scripts/rename-map.sh reconcile <target-dir>
 
 # Clear the rollback map (after confirming changes are correct)
 bash <skill-path>/scripts/rename-map.sh clear <target-dir>
