@@ -65,6 +65,7 @@ The following MUST be kept as-is from the original file name:
 - **Source code files**: `.py`, `.cpp`, `.c`, `.h`, `.js`, `.ts`, `.java`, `.go`, `.rs`, `.rb`, `.sh`, etc.
 - **Executable/installer files**: `.exe`, `.msi` — keep original name exactly
 - **CI/CD configs**: `Jenkinsfile*`, `Makefile`, `Dockerfile`
+- **Dataset files**: files inside dataset directories (100+ same-extension files, or folder named `train`/`val`/`test`/`dataset`/`images`/`labels`/`annotations` etc.)
 
 ## Avoid
 

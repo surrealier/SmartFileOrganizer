@@ -38,6 +38,24 @@ If the user provides a directory without specifying other options, use defaults 
 2. Skip hidden files/directories (starting with `.`) and common ignore patterns (`node_modules`, `.git`, `__pycache__`, etc.)
 3. **Skip source code files** by default — renaming these breaks import paths, include directives, and build systems. Excluded extensions: `.py`, `.cpp`, `.c`, `.h`, `.hpp`, `.js`, `.ts`, `.jsx`, `.tsx`, `.java`, `.go`, `.rs`, `.rb`, `.cs`, `.swift`, `.kt`, `.scala`, `.sh`, `.bat`, `.ps1`, and CI/CD config files (`Jenkinsfile*`, `Makefile`, `Dockerfile`, `*.cmake`). The user can override this with an explicit `--include-code` flag or request.
 4. **Skip executable/installer files** — keep `.exe`, `.msi`, `.appimage`, `.dmg` files with their original names.
+5. **Detect suspected dataset directories** — before processing, identify directories that may contain bulk datasets. A directory is suspected if ANY of the following is true:
+   - It contains **100+ files with the same extension**
+   - Files follow sequential or hash-based naming patterns (e.g., `img_0001.jpg`…`img_9999.jpg`, `a3f8c2.png`)
+   - Its name matches common dataset patterns (case-insensitive): `train`, `val`, `valid`, `validation`, `test`, `dataset`, `datasets`, `images`, `labels`, `annotations`, `samples`, `corpus`, `raw`, `processed`
+   - It contains annotation/manifest files alongside bulk data (e.g., `*.json`/`*.csv` annotation + 50+ image/text files)
+   
+   For each suspected directory, **ask the user** before deciding:
+   ```
+   ⚠ 다음 폴더가 데이터셋으로 의심됩니다:
+     📁 train/ — 1523 .jpg files, sequential naming pattern
+     📁 annotations/ — 1523 .json files + manifest.csv
+   
+   각 폴더에 대해 스킵할지 포함할지 선택해주세요:
+     [S] 스킵 (데이터셋이므로 건드리지 않음)
+     [I] 포함 (일반 폴더로 처리)
+   ```
+   - User-confirmed dataset directories are excluded entirely and logged with reason "dataset directory (user confirmed)"
+   - User-confirmed non-dataset directories proceed to normal processing
 3. Create an inventory with: current path, file size, extension, last modified date
 4. Report the inventory summary to the user:
    - Total file count
@@ -147,27 +165,40 @@ After user approval:
 
 If the user chose `full-organize`, after renaming:
 
-1. Propose a folder structure based on file types and content categories:
+1. Analyze existing folder structure and file content categories
+2. Propose a new folder structure — this may include:
+   - **Creating new folders** for categories that don't exist yet
+   - **Renaming existing folders** to more descriptive names (e.g., `misc/` → `reports/`, `새 폴더/` → `presentations/`)
+   - **Merging folders** that contain similar content
+   - **Removing empty folders** after files are moved out
 
-```
-<target-dir>/
-├── documents/
-│   ├── reports/
-│   └── notes/
-├── code/
-│   ├── python/
-│   └── javascript/
-├── images/
-│   ├── photos/
-│   └── screenshots/
-├── data/
-│   ├── csv/
-│   └── json/
-└── other/
-```
+   Example proposal:
+   ```
+   📁 Folder changes:
+     [NEW]    documents/reports/
+     [NEW]    images/screenshots/
+     [RENAME] misc/ → data/csv/
+     [RENAME] 새 폴더/ → presentations/
+     [DELETE] old-stuff/ (empty after move)
 
-2. Present the proposed moves to the user for approval
-3. After approval, move files and clean up empty directories
+   📁 Proposed structure:
+   <target-dir>/
+   ├── documents/
+   │   ├── reports/
+   │   └── notes/
+   ├── images/
+   │   ├── photos/
+   │   └── screenshots/
+   ├── data/
+   │   ├── csv/
+   │   └── json/
+   └── other/
+   ```
+
+3. Folder naming follows the same conventions as file naming (see `references/naming-conventions.md`), using `kebab-case` and descriptive names
+4. Present the proposed folder changes AND file moves to the user for approval
+5. After approval, execute folder operations first (create/rename), then move files, then clean up empty directories
+6. All folder rename/move operations are recorded in the rollback map for undo
 
 ### Step 7: Summary Report
 
@@ -198,6 +229,7 @@ Output a summary:
 | # | File | Reason |
 |---|------|--------|
 | 1 | `some-file.py` | Source code (excluded) |
+| 2 | `train/` (1523 files) | Dataset directory |
 | ... | ... | ... |
 
 ## Moved to _unknown/ (K files)
