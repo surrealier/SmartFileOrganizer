@@ -22,6 +22,7 @@
 - **Content-based renaming** — reads every file's actual content and generates normalized names from scratch, never relying on original filenames.
 - Encoding fallback detection (UTF-8 → CP949 → Shift_JIS → GB2312 → EUC-KR → Latin-1).
 - **Language preference** — choose allowed languages at start; non-allowed languages are auto-translated (e.g., 日本語 → 한국어).
+- **Rename strictness** — choose between `recovery` (fix only broken names) and `uniform` (standardize all names).
 - **Dataset folder detection** — suspects bulk dataset directories and asks user to confirm skip or include.
 - Supports `.hwpx` (ZIP/XML extraction), `.hwp`, `.pdf`, `.docx`, `.xlsx`, `.pptx` and more.
 - Dry-run approval flow — iterates until user explicitly approves.
@@ -58,13 +59,13 @@ Tell your AI agent:
 
 ## 🧭 How It Works
 
-1. Ask user for target directory, mode, and **allowed languages**.
+1. Ask user for target directory, mode, **allowed languages**, and **rename strictness**.
 2. Scan files recursively; **detect suspected dataset folders** and ask user to confirm skip/include.
 3. Analyze content/metadata by file type (including `.hwpx` ZIP/XML extraction).
-4. Generate a **dry-run rename map** — all non-code files renamed from scratch based on content.
+4. Generate a **dry-run rename map** and **save rollback map immediately** after approval (crash-safe).
 5. Iterate until user explicitly approves.
 6. Execute rename (and optional folder create/rename/merge/move).
-7. Save rollback metadata and changelog for undo.
+7. **Reconcile** rollback map against actual state, save changelog for undo.
 
 ## 🔁 Rollback Commands
 
@@ -74,6 +75,9 @@ bash scripts/rename-map.sh show <target-dir>
 
 # undo all recorded rename/move operations
 bash scripts/rename-map.sh rollback <target-dir>
+
+# reconcile map after interrupted execution
+bash scripts/rename-map.sh reconcile <target-dir>
 
 # delete rollback map
 bash scripts/rename-map.sh clear <target-dir>
@@ -104,12 +108,13 @@ Works with [skills.sh](https://skills.sh)-compatible agents, including Kiro CLI,
 
 ## 🔄 Version & Changelog
 
-Current version: **v1.2.0**
+Current version: **v1.3.0**
 
 > Skills are copied as a snapshot at install time. To update, run `npx skills add surrealier/SmartFileOrganizer` again.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v1.3.0 | 2026-03-09 | Pre-execution rollback map for crash safety with post-execution reconcile. Rename strictness option: `recovery` (default, fix broken names only) vs `uniform` (standardize all names). |
 | v1.2.0 | 2026-03-09 | Dataset folder detection with user confirmation prompt. Language preference setting (auto-translate non-allowed languages). Full-organize mode now supports folder creation, renaming, and merging. Enforced content-based rename for all non-code files — partially descriptive names are also renamed from scratch. Added `.hwpx` ZIP/XML and `.hwp` text extraction guidance. |
 | v1.1.0 | 2026-03-09 | Naming convention overhaul: `_` separator, preserve person names / versions / status markers, allow uppercase for acronyms. Skip source code and executable files from renaming. Auto-generate changelog.md after execution. |
 | v1.0.0 | 2026-03-06 | Initial release: rename-only / full-organize modes, rollback support, encoding detection. |
