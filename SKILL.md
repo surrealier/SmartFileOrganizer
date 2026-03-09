@@ -36,6 +36,8 @@ If the user provides a directory without specifying other options, use defaults 
 
 1. List all files recursively in the target directory
 2. Skip hidden files/directories (starting with `.`) and common ignore patterns (`node_modules`, `.git`, `__pycache__`, etc.)
+3. **Skip source code files** by default — renaming these breaks import paths, include directives, and build systems. Excluded extensions: `.py`, `.cpp`, `.c`, `.h`, `.hpp`, `.js`, `.ts`, `.jsx`, `.tsx`, `.java`, `.go`, `.rs`, `.rb`, `.cs`, `.swift`, `.kt`, `.scala`, `.sh`, `.bat`, `.ps1`, and CI/CD config files (`Jenkinsfile*`, `Makefile`, `Dockerfile`, `*.cmake`). The user can override this with an explicit `--include-code` flag or request.
+4. **Skip executable/installer files** — keep `.exe`, `.msi`, `.appimage`, `.dmg` files with their original names.
 3. Create an inventory with: current path, file size, extension, last modified date
 4. Report the inventory summary to the user:
    - Total file count
@@ -174,6 +176,39 @@ Output a summary:
 - Files moved: count (if full-organize)
 - Files skipped: count and reasons
 - Rollback command: `bash <skill-path>/scripts/rename-map.sh rollback <target-dir>`
+
+**Save change log** — write a Markdown file at `<target-dir>/.file-organizer-changelog.md` with:
+
+```markdown
+# File Organizer Change Log
+
+- **Date**: YYYY-MM-DD HH:MM
+- **Mode**: rename-only | full-organize
+- **Target**: <target-dir>
+
+## Changes (N files)
+
+| # | Before | After |
+|---|--------|-------|
+| 1 | `old-name.pdf` | `new-name.pdf` |
+| ... | ... | ... |
+
+## Skipped (M files)
+
+| # | File | Reason |
+|---|------|--------|
+| 1 | `some-file.py` | Source code (excluded) |
+| ... | ... | ... |
+
+## Moved to _unknown/ (K files)
+
+| # | File | Reason |
+|---|------|--------|
+| 1 | `hash-image.webp` | Unreadable content |
+| ... | ... | ... |
+```
+
+This file is overwritten on each run (previous logs are not preserved).
 
 ## Rollback
 
