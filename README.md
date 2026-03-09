@@ -98,3 +98,14 @@ Works with [skills.sh](https://skills.sh)-compatible agents, including Kiro CLI,
 - Always require explicit approval before execution.
 - Always save rollback map before renaming/moving.
 - Preserve extension and naming consistency.
+
+## 🔄 Version & Changelog
+
+Current version: **v1.1.0**
+
+> Skills are copied as a snapshot at install time. To update, run `npx skills add surrealier/SmartFileOrganizer` again.
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v1.1.0 | 2026-03-09 | Naming convention overhaul: `_` separator, preserve person names / versions / status markers, allow uppercase for acronyms. Skip source code and executable files from renaming. Auto-generate changelog.md after execution. |
+| v1.0.0 | 2026-03-06 | Initial release: rename-only / full-organize modes, rollback support, encoding detection. |
