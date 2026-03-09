@@ -1,58 +1,100 @@
-# Smart File Organizer
+<p align="center">
+  <img src="https://img.shields.io/badge/Smart%20File%20Organizer-AI%20Skill-4F46E5?style=for-the-badge" alt="Smart File Organizer banner" />
+</p>
 
-AI agent skill that analyzes file contents and renames them to meaningful names. Optionally reorganizes files into a logical folder structure.
+<h1 align="center">Smart File Organizer</h1>
 
-## Install
+<p align="center">
+  AI skill that analyzes file contents, proposes meaningful filenames, and optionally reorganizes folders with a safe rollback map.
+</p>
+
+<p align="center">
+  <a href="./SKILL.md"><img src="https://img.shields.io/badge/skill-ready-success" alt="skill ready" /></a>
+  <a href="./scripts/rename-map.sh"><img src="https://img.shields.io/badge/rollback-supported-blue" alt="rollback supported" /></a>
+  <img src="https://img.shields.io/badge/mode-rename--only%20%7C%20full--organize-orange" alt="modes" />
+</p>
+
+---
+
+## ✨ Features
+
+- Recursively scans target directories.
+- Reads content with encoding fallback detection.
+- Proposes concise, descriptive names based on file content.
+- Runs in dry-run approval flow before any rename/move.
+- Supports two modes:
+  - `rename-only` (default)
+  - `full-organize` (rename + folder restructure)
+- Moves unreadable files to `_unknown/`.
+- Saves rollback map for safe undo.
+
+## 📦 Installation
+
+### 1) Install from local repository (recommended while developing)
 
 ```bash
-npx skills add <your-github-username>/SmartFileOrganizer
+git clone https://github.com/<owner>/SmartFileOrganizer.git
+cd SmartFileOrganizer
+npx skills add .
 ```
 
-## What it does
+### 2) Install directly from GitHub
 
-1. Scans a target directory recursively
-2. Reads file contents (with automatic encoding detection)
-3. Proposes descriptive file names based on content
-4. Shows a dry-run preview for iterative approval
-5. Renames (and optionally moves) files after user confirms
-6. Moves unreadable files to `_unknown/`
-7. Saves a rollback map for undo
+```bash
+npx skills add <owner>/SmartFileOrganizer
+```
 
-## Modes
+> Replace `<owner>` with the actual GitHub account name.
 
-- `rename-only` — rename files in place (default)
-- `full-organize` — rename + reorganize into categorized folders
-
-## Usage Examples
+## 🚀 Quick Usage
 
 Tell your AI agent:
 
-> "Organize the files in ~/Downloads — rename them based on their content"
+- `Organize the files in ~/Downloads — rename them based on their content.`
+- `Clean up /projects/data with full-organize mode, use Korean file names.`
+- `Rollback the last file organization in ~/Downloads.`
 
-> "Clean up /projects/data with full-organize mode, use Korean file names"
+## 🧭 How It Works
 
-> "Rollback the last file organization in ~/Downloads"
+1. Scan files recursively in target directory.
+2. Analyze content/metadata by file type.
+3. Generate a **dry-run rename map**.
+4. Iterate until user explicitly approves.
+5. Execute rename (and optional move).
+6. Save rollback metadata for undo.
 
-## Rollback
+## 🔁 Rollback Commands
 
 ```bash
-bash scripts/rename-map.sh show <dir>      # view the map
-bash scripts/rename-map.sh rollback <dir>   # undo all changes
-bash scripts/rename-map.sh clear <dir>      # delete the map
+# show current rollback map
+bash scripts/rename-map.sh show <target-dir>
+
+# undo all recorded rename/move operations
+bash scripts/rename-map.sh rollback <target-dir>
+
+# delete rollback map
+bash scripts/rename-map.sh clear <target-dir>
 ```
 
-## Structure
+## 🗂 Project Structure
 
-```
+```text
 SmartFileOrganizer/
-├── SKILL.md                          # Skill definition
+├── SKILL.md
 ├── scripts/
-│   └── rename-map.sh                 # Rollback helper
+│   └── rename-map.sh
 ├── references/
-│   └── naming-conventions.md         # Naming rules reference
+│   └── naming-conventions.md
 └── README.md
 ```
 
-## Supported Agents
+## 🤖 Supported Agents
 
-Works with any [skills.sh](https://skills.sh) compatible agent: Kiro CLI, Claude Code, Cursor, Windsurf, Cline, and more.
+Works with [skills.sh](https://skills.sh)-compatible agents, including Kiro CLI, Claude Code, Cursor, Windsurf, Cline, and others.
+
+## 🛡 Safety Principles
+
+- Never overwrite existing files.
+- Always require explicit approval before execution.
+- Always save rollback map before renaming/moving.
+- Preserve extension and naming consistency.
