@@ -19,12 +19,16 @@
 ## ✨ Features
 
 - Recursively scans target directories.
-- Reads content with encoding fallback detection.
-- Proposes concise, descriptive names based on file content.
-- Runs in dry-run approval flow before any rename/move.
+- **Content-based renaming** — reads every file's actual content and generates normalized names from scratch, never relying on original filenames.
+- Encoding fallback detection (UTF-8 → CP949 → Shift_JIS → GB2312 → EUC-KR → Latin-1).
+- **Language preference** — choose allowed languages at start; non-allowed languages are auto-translated (e.g., 日本語 → 한국어).
+- **Dataset folder detection** — suspects bulk dataset directories and asks user to confirm skip or include.
+- Supports `.hwpx` (ZIP/XML extraction), `.hwp`, `.pdf`, `.docx`, `.xlsx`, `.pptx` and more.
+- Dry-run approval flow — iterates until user explicitly approves.
 - Supports two modes:
   - `rename-only` (default)
-  - `full-organize` (rename + folder restructure)
+  - `full-organize` (rename + create/rename/merge folders)
+- Skips source code and executable files by default.
 - Moves unreadable files to `_unknown/`.
 - Saves rollback map for safe undo.
 
@@ -33,7 +37,7 @@
 ### 1) Install from local repository (recommended while developing)
 
 ```bash
-git clone https://github.com/<owner>/SmartFileOrganizer.git
+git clone https://github.com/surrealier/SmartFileOrganizer.git
 cd SmartFileOrganizer
 npx skills add .
 ```
@@ -41,10 +45,8 @@ npx skills add .
 ### 2) Install directly from GitHub
 
 ```bash
-npx skills add <owner>/SmartFileOrganizer
+npx skills add surrealier/SmartFileOrganizer
 ```
-
-> Replace `<owner>` with the actual GitHub account name.
 
 ## 🚀 Quick Usage
 
@@ -56,12 +58,13 @@ Tell your AI agent:
 
 ## 🧭 How It Works
 
-1. Scan files recursively in target directory.
-2. Analyze content/metadata by file type.
-3. Generate a **dry-run rename map**.
-4. Iterate until user explicitly approves.
-5. Execute rename (and optional move).
-6. Save rollback metadata for undo.
+1. Ask user for target directory, mode, and **allowed languages**.
+2. Scan files recursively; **detect suspected dataset folders** and ask user to confirm skip/include.
+3. Analyze content/metadata by file type (including `.hwpx` ZIP/XML extraction).
+4. Generate a **dry-run rename map** — all non-code files renamed from scratch based on content.
+5. Iterate until user explicitly approves.
+6. Execute rename (and optional folder create/rename/merge/move).
+7. Save rollback metadata and changelog for undo.
 
 ## 🔁 Rollback Commands
 
@@ -101,11 +104,12 @@ Works with [skills.sh](https://skills.sh)-compatible agents, including Kiro CLI,
 
 ## 🔄 Version & Changelog
 
-Current version: **v1.1.0**
+Current version: **v1.2.0**
 
 > Skills are copied as a snapshot at install time. To update, run `npx skills add surrealier/SmartFileOrganizer` again.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v1.2.0 | 2026-03-09 | Dataset folder detection with user confirmation prompt. Language preference setting (auto-translate non-allowed languages). Full-organize mode now supports folder creation, renaming, and merging. Enforced content-based rename for all non-code files — partially descriptive names are also renamed from scratch. Added `.hwpx` ZIP/XML and `.hwp` text extraction guidance. |
 | v1.1.0 | 2026-03-09 | Naming convention overhaul: `_` separator, preserve person names / versions / status markers, allow uppercase for acronyms. Skip source code and executable files from renaming. Auto-generate changelog.md after execution. |
 | v1.0.0 | 2026-03-06 | Initial release: rename-only / full-organize modes, rollback support, encoding detection. |
