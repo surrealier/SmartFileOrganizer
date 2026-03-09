@@ -26,7 +26,15 @@ Ask the user for:
 
 1. **Target directory** — absolute path to scan (required)
 2. **Mode** — `rename-only` or `full-organize` (default: rename-only)
-3. **Language** — language for new file names (default: match original or English)
+3. **Allowed languages** — which languages to keep in file names (default: match original or English). Ask explicitly:
+   ```
+   파일명에 사용할 언어를 선택해주세요:
+     허용 언어: (예: 한국어, English)
+     그 외 언어 처리: 허용 언어 중 하나로 번역 (예: 日本語 → 한국어)
+   ```
+   - When file content is in a non-allowed language, translate the generated name into the user's preferred allowed language
+   - Example: a Japanese PDF → analyze content in Japanese → generate Korean file name
+   - Acronyms and proper nouns are exempt from translation (`IITP`, `YOLOv8`, etc.)
 4. **File filter** — specific extensions to include/exclude (default: all files)
 5. **Max depth** — how deep to recurse into subdirectories (default: unlimited)
 
@@ -76,11 +84,26 @@ If there are more than 100 files, ask the user to confirm before proceeding or s
 
 ### Step 3: Analyze File Contents
 
-For each file, determine a descriptive name based on its content:
+**⚠ CRITICAL: ALL non-code files MUST be renamed to a normalized format based on their actual content. No exceptions.**
 
-**Text-based files** (.txt, .md, .py, .js, .json, .csv, .html, .xml, etc.):
-- Read only the **first 10% of the file** (by line count or byte size, whichever is easier to measure). Minimum: 5 lines. Maximum cap: 200 lines.
-- Identify the main topic, purpose, or function from this excerpt only
+- The original file name is UNRELIABLE — treat it as if it were random characters
+- You MUST read/analyze the file content first, then generate a name from scratch
+- Files with partially descriptive but non-standard names (e.g., `073_재난안전_증강생성기술_XR증강.hwpx`, `report_v2_final.docx`, `김대리_보고서3.pdf`) MUST still be renamed after reading their content
+- The ONLY reason to keep an original name is if it already perfectly matches the naming convention format AND accurately describes the specific content
+
+**Rename criteria** — a file MUST be renamed if ANY of the following is true:
+- Contains meaningless prefixes, serial numbers, or codes (`073_`, `IMG_`, `DSC_`, `001_`, `(3)`)
+- Name is vague, abbreviated, or doesn't capture the document's specific subject
+- Doesn't follow the `[YYMMDD_]<attr1>_<attr2>[_...<attrN>].<ext>` format from `references/naming-conventions.md`
+- Contains non-allowed language characters (per Step 1 language settings)
+- Contains generic words (`document`, `file`, `untitled`, `report`, `보고서`) without specific context
+
+For each file, read its content and determine a descriptive name:
+
+**Text-based files** (.txt, .md, .json, .csv, .html, .xml, .log, .yaml, .yml, .ini, .cfg, .conf, .toml, etc.):
+- Read the **first 10% of the file** (by line count or byte size). Minimum: 5 lines. Maximum cap: 200 lines.
+- Identify the main topic, purpose, or subject matter from the actual text content
+- The proposed name must reflect what the text is about, not the file format
 
 **Encoding detection** — if file content appears garbled or unreadable:
 1. Try reading with common encodings in order: `utf-8` → `cp949` (Korean) → `shift_jis` (Japanese) → `gb2312` (Chinese) → `euc-kr` → `latin-1`
@@ -90,11 +113,15 @@ For each file, determine a descriptive name based on its content:
 
 **Documents** (.pdf, .docx, .xlsx, .pptx, .hwp, .hwpx):
 - Extract text from the **first 10% of pages** (minimum: 1 page)
-- If not readable, use metadata (title, author, subject) or fall back to existing name
+- Read the extracted text and identify the document's subject, title, or purpose
+- For `.hwpx` files: these are ZIP archives containing XML — unzip and parse `Contents/section*.xml` to extract body text
+- For `.hwp` files: use `hwp5txt` or `pyhwp` if available, otherwise try `strings` command with Korean encoding
+- If text extraction fails, use metadata (title, author, subject) as fallback
+- Only fall back to the existing name as a last resort, and flag it for user review with `⚠ content unreadable — name based on metadata/original`
 
 **Images** (.jpg, .png, .gif, .webp, .svg, .jfif):
 - Check EXIF data or embedded metadata if available
-- If the agent has vision capability, analyze the image content
+- If the agent has vision capability, **analyze the image content directly** and name based on what is depicted
 - Otherwise, attempt **contextual inference** in this order:
   1. **Sibling files** — check other files in the same directory for topic/project clues
   2. **Timestamps** — compare creation/modification time with nearby files to find temporal clusters (files within minutes of each other likely share context)
@@ -111,12 +138,18 @@ For each file, determine a descriptive name based on its content:
 - Log the reason for failure (e.g., "encoding detection failed", "binary with no metadata")
 - Include these in the dry-run preview so the user can override the decision
 
+**Language handling** — apply the allowed languages setting from Step 1:
+- Detect the language of the file content
+- If the content language is not in the allowed list, translate the proposed name into the user's preferred allowed language
+- Keep acronyms and proper nouns untranslated
+
 **Naming rules** — refer to `references/naming-conventions.md` for detailed patterns. Key rules:
-- Use `kebab-case` for all file names
-- Keep names concise: 3-6 words maximum
+- Use `_` separator between attributes, `-` within multi-word attributes
+- Keep names concise: 3-6 attributes maximum
 - Preserve the original file extension
-- Include a date prefix (`YYYY-MM-DD-`) when the file has a clear associated date
+- Include a date prefix (`YYMMDD_`) when the file has a clear associated date
 - Avoid generic names like `document`, `file`, `untitled`
+- **Always generate a fresh name from content analysis** — never copy the original file name. Even if the original name contains relevant words, rebuild the name from scratch following the naming convention format
 
 ### Step 4: Generate Rename Map (Dry Run)
 
