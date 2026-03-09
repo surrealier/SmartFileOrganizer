@@ -44,13 +44,23 @@ If the user provides a directory without specifying other options, use defaults 
 
 If there are more than 100 files, ask the user to confirm before proceeding or suggest narrowing the scope with filters.
 
+**Batch processing** — to avoid context overflow and tool-call failures:
+
+- Maximum batch size: **50 files** per batch
+- When total files exceed 50, split the inventory into batches of up to 50
+- Process each batch as an independent sub-agent (or sequential batch if sub-agents are unavailable):
+  1. Each batch receives its own file list and performs Steps 3–4 independently
+  2. Merge all batch results into a single unified rename map before presenting to the user
+- Sub-agent batches may run in parallel (up to 4 concurrent batches)
+- Each batch must return its partial rename map as JSON for merging
+
 ### Step 3: Analyze File Contents
 
 For each file, determine a descriptive name based on its content:
 
 **Text-based files** (.txt, .md, .py, .js, .json, .csv, .html, .xml, etc.):
-- Read the first 200 lines or 8KB (whichever is smaller)
-- Identify the main topic, purpose, or function
+- Read only the **first 10% of the file** (by line count or byte size, whichever is easier to measure). Minimum: 5 lines. Maximum cap: 200 lines.
+- Identify the main topic, purpose, or function from this excerpt only
 
 **Encoding detection** — if file content appears garbled or unreadable:
 1. Try reading with common encodings in order: `utf-8` → `cp949` (Korean) → `shift_jis` (Japanese) → `gb2312` (Chinese) → `euc-kr` → `latin-1`
@@ -58,14 +68,19 @@ For each file, determine a descriptive name based on its content:
 3. Once readable text is obtained, proceed with content analysis
 4. If no encoding produces readable text, mark the file as **unreadable**
 
-**Documents** (.pdf, .docx, .xlsx, .pptx):
-- If readable, extract text from the first page/sheet
+**Documents** (.pdf, .docx, .xlsx, .pptx, .hwp, .hwpx):
+- Extract text from the **first 10% of pages** (minimum: 1 page)
 - If not readable, use metadata (title, author, subject) or fall back to existing name
 
-**Images** (.jpg, .png, .gif, .webp, .svg):
+**Images** (.jpg, .png, .gif, .webp, .svg, .jfif):
 - Check EXIF data or embedded metadata if available
 - If the agent has vision capability, analyze the image content
-- Otherwise, use date taken + any available metadata
+- Otherwise, attempt **contextual inference** in this order:
+  1. **Sibling files** — check other files in the same directory for topic/project clues
+  2. **Timestamps** — compare creation/modification time with nearby files to find temporal clusters (files within minutes of each other likely share context)
+  3. **File name fragments** — extract any meaningful parts from the original name (dates, sequence numbers, app names)
+  4. **Parent directory name** — use the folder name as a category hint
+- If none of the above yields a confident name, move to `_unknown/`
 
 **Binary/unknown files**:
 - Use file metadata and extension only
@@ -99,14 +114,6 @@ notes.txt                       → meeting-notes-product-roadmap.txt
 corrupted-data.bin              → _unknown/corrupted-data.bin (reason: binary, no metadata)
 ```
 
-Save the rename map to a JSON file using the helper script:
-
-```bash
-bash <skill-path>/scripts/rename-map.sh save <target-dir>
-```
-
-This creates `<target-dir>/.file-organizer-map.json` for rollback purposes.
-
 **Iterative approval loop** — repeat until the user explicitly approves:
 
 1. Present the full rename map
@@ -125,7 +132,11 @@ Do NOT proceed to execution until the user gives explicit approval.
 
 After user approval:
 
-1. Save the rollback map first (original → new mapping)
+1. Save the rollback map to a JSON file using the helper script:
+   ```bash
+   bash <skill-path>/scripts/rename-map.sh save <target-dir>
+   ```
+   This creates `<target-dir>/.file-organizer-map.json` for rollback purposes.
 2. Rename files one by one
 3. Report progress and any errors (e.g., name conflicts, permission issues)
 4. On name conflict, append a numeric suffix: `report-q3-2.pdf`
