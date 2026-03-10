@@ -76,6 +76,7 @@ If the user provides a directory without specifying other options, use defaults 
    - User-confirmed non-dataset directories proceed to normal processing.
 6. Create an inventory with: current path, file size, extension, last modified date.
 7. **Scan directory names** — identify directories with broken or meaningless names (garbled encoding, `New Folder`, `새 폴더`, `Untitled`, numeric-only names like `1`, `2`, `3`). These are included in the rename map alongside files. Directory renames apply in all modes (including `rename-only`), and are executed **after** all file renames to avoid path invalidation.
+   - **File/directory name encoding recovery** — names containing garbled bytes (mojibake) should be decoded by trying `EUC-KR`, `CP949`, `Shift_JIS`, `GB2312`, and `Latin-1` against the raw bytes. If a readable name is recovered, use it as the basis for renaming.
 8. Report the inventory summary to the user:
    - Total file count
    - Breakdown by extension
