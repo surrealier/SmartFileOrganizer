@@ -75,7 +75,8 @@ If the user provides a directory without specifying other options, use defaults 
    - User-confirmed dataset directories are excluded entirely and logged as "dataset directory (user confirmed)".
    - User-confirmed non-dataset directories proceed to normal processing.
 6. Create an inventory with: current path, file size, extension, last modified date.
-7. Report the inventory summary to the user:
+7. **Scan directory names** — identify directories with broken or meaningless names (garbled encoding, `New Folder`, `새 폴더`, `Untitled`, numeric-only names like `1`, `2`, `3`). These are included in the rename map alongside files. Directory renames apply in all modes (including `rename-only`), and are executed **after** all file renames to avoid path invalidation.
+8. Report the inventory summary to the user:
    - Total file count
    - Breakdown by extension
    - Total size
@@ -424,6 +425,7 @@ The user can also ask the agent directly: "rollback the last file organization",
 ## Safety Rules
 
 - NEVER overwrite existing files — always check for conflicts first.
+- NEVER execute `rm -rf` or any recursive delete command without explicit user approval — even inside sub-agents. Deletions of empty directories (`rmdir`) are allowed only after confirming the directory is empty.
 - ALWAYS save the rollback map before making any changes.
 - ALWAYS show the dry-run preview and get explicit user approval before executing.
 - Skip files that are currently open or locked.
