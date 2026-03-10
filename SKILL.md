@@ -6,7 +6,8 @@ description: >
   clean up messy file names, organize downloaded files, sort documents by content, rename files that have
   meaningless names (like IMG_20240101.jpg or document(3).pdf), or tidy up any folder where file names
   don't reflect their actual content. Also triggers when users mention bulk renaming, file cleanup,
-  content-based organization, or folder restructuring.
+  content-based organization, folder restructuring, collecting files by topic or purpose (e.g., "이력 관련
+  자료 모아줘", "gather dataset files", "일회성 자료 판단해줘"), or filtering and grouping files by category.
 ---
 
 # Smart File Organizer
@@ -17,6 +18,7 @@ Analyze file contents in a target directory (including all subdirectories), rena
 
 - **rename-only** (default): Rename files in place based on content analysis.
 - **full-organize**: Rename files AND reorganize them into a categorized folder structure (create, rename, merge folders).
+- **collect**: Scan files across directories and **copy** those matching a user-defined purpose into a single output folder. Does not rename or move originals.
 
 ## Procedure
 
@@ -25,7 +27,8 @@ Analyze file contents in a target directory (including all subdirectories), rena
 Ask the user for:
 
 1. **Target directory** — absolute path to scan (required).
-2. **Mode** — `rename-only` or `full-organize` (default: `rename-only`).
+2. **Mode** — `rename-only`, `full-organize`, or `collect` (default: `rename-only`).
+   - If `collect`: also ask for the **collection query** — what kind of files to gather (e.g., "이력 관련 자료", "dataset files", "일회성 자료").
 3. **Allowed languages** — which languages to keep in file names (default: match original or English).
    ```
    Which languages should be used in file names?
@@ -87,11 +90,13 @@ If there are more than 100 files, ask the user to confirm before proceeding or s
   1. Each batch receives its own file list and performs Steps 3–4 independently.
   2. Merge all batch results into a single unified rename map before presenting to the user.
 - Sub-agent batches may run in parallel (up to 4 concurrent batches).
+- **Sub-agent auto-approve** — sub-agents must execute all file reading and analysis operations without requiring user confirmation. Only the final consolidated dry-run map (Step 4) requires user approval. When invoking sub-agents, pass the `--auto-approve` or equivalent flag so that tool calls within each batch proceed automatically.
 - Each batch must return its partial rename map as JSON for merging.
 - **Batch merge deduplication** — after merging all batch results, scan for proposed name collisions:
   1. Group entries by proposed name (case-insensitive).
   2. For each collision, differentiate by appending a distinguishing attribute (date, parent folder name, or numeric suffix).
   3. Log resolved collisions in the dry-run output so the user can review.
+- **Completion guardrail** — after all batches return, verify that every file in the inventory is accounted for (renamed, skipped-with-reason, or moved to `_unknown/`). If any files are missing from batch results, re-queue them in a supplementary batch. The final rename map MUST cover 100% of inventoried files.
 
 ### Step 3: Analyze File Contents
 
@@ -282,6 +287,7 @@ After the rollback map is saved:
    bash <skill-path>/scripts/rename-map.sh reconcile <target-dir>
    ```
    This ensures the rollback map only contains operations that actually happened.
+6. **Execution completeness check** — compare the reconciled map + skip list against the original inventory. If any files were neither renamed nor explicitly skipped, report them as errors and retry.
 
 ### Step 6: Reorganize (full-organize mode only)
 
@@ -322,12 +328,39 @@ If the user chose `full-organize`, after renaming:
 5. After approval, execute folder operations first (create/rename), then move files, then clean up empty directories.
 6. All folder rename/move operations are recorded in the rollback map for undo.
 
+### Step 6b: Collect (collect mode only)
+
+If the user chose `collect`, **skip Steps 3–6** and follow this procedure instead:
+
+1. Use the **collection query** from Step 1 to define the search criteria.
+2. For each file in the inventory, determine relevance by:
+   - File name and path keywords.
+   - Content sampling (first 4 KB for text, 8 KB for documents) — same caps as Step 3.
+   - Metadata (extension, parent folder name, dates).
+3. Score each file's relevance and build a **collect list** with confidence levels:
+   ```
+   📋 Collect: "이력 관련 자료" → _collected/이력_관련/
+     ✅ High (12 files):
+       documents/이력서_홍길동.pdf
+       career/portfolio_2025.pptx
+       ...
+     🔶 Medium (5 files):
+       misc/자기소개서_draft.docx
+       ...
+     ❌ Excluded (283 files): not relevant
+   ```
+4. Present the collect list and ask user to approve, adjust threshold, or exclude specific files.
+5. After approval, **copy** (not move) matched files to `<target-dir>/_collected/<query-slug>/`.
+6. Preserve original directory structure as flat copies (prepend parent folder name on conflict).
+7. Log the collection in `.file-organizer-changelog.md`.
+
 ### Step 7: Summary Report
 
 Output a summary:
 
 - Files renamed: count
 - Files moved: count (if full-organize)
+- Files collected: count and destination (if collect)
 - Files skipped: count and reasons
 - Rollback command: `bash <skill-path>/scripts/rename-map.sh rollback <target-dir>`
 
@@ -337,7 +370,7 @@ Output a summary:
 # File Organizer Change Log
 
 - **Date**: YYYY-MM-DD HH:MM
-- **Mode**: rename-only | full-organize
+- **Mode**: rename-only | full-organize | collect
 - **Target**: <target-dir>
 
 ## Changes (N files)

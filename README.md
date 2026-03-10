@@ -11,7 +11,7 @@
 <p align="center">
   <a href="./SKILL.md"><img src="https://img.shields.io/badge/skill-ready-success" alt="skill ready" /></a>
   <a href="./scripts/rename-map.sh"><img src="https://img.shields.io/badge/rollback-supported-blue" alt="rollback supported" /></a>
-  <img src="https://img.shields.io/badge/mode-rename--only%20%7C%20full--organize-orange" alt="modes" />
+  <img src="https://img.shields.io/badge/mode-rename--only%20%7C%20full--organize%20%7C%20collect-orange" alt="modes" />
 </p>
 
 ---
@@ -29,6 +29,7 @@
 - Supports two modes:
   - `rename-only` (default)
   - `full-organize` (rename + create/rename/merge folders)
+  - `collect` (gather files matching a purpose into one folder)
 - Skips source code and executable files by default.
 - Moves unreadable files to `_unknown/`.
 - Saves rollback map for safe undo.
