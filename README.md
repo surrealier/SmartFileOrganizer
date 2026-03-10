@@ -108,12 +108,13 @@ Works with [skills.sh](https://skills.sh)-compatible agents, including Kiro CLI,
 
 ## 🔄 Version & Changelog
 
-Current version: **v1.3.0**
+Current version: **v1.4.0**
 
 > Skills are copied as a snapshot at install time. To update, run `npx skills add surrealier/SmartFileOrganizer` again.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v1.4.0 | 2026-03-10 | Large-directory optimization: recovery-mode pre-filter skips content reading for already-descriptive names, summary-first dry-run for 30+ files, batch merge deduplication, content reading byte caps (text 4 KB / docs 8 KB), progress reporting every 25 files. |
 | v1.3.0 | 2026-03-09 | Pre-execution rollback map for crash safety with post-execution reconcile. Rename strictness option: `recovery` (default, fix broken names only) vs `uniform` (standardize all names). |
 | v1.2.0 | 2026-03-09 | Dataset folder detection with user confirmation prompt. Language preference setting (auto-translate non-allowed languages). Full-organize mode now supports folder creation, renaming, and merging. Enforced content-based rename for all non-code files — partially descriptive names are also renamed from scratch. Added `.hwpx` ZIP/XML and `.hwp` text extraction guidance. |
 | v1.1.0 | 2026-03-09 | Naming convention overhaul: `_` separator, preserve person names / versions / status markers, allow uppercase for acronyms. Skip source code and executable files from renaming. Auto-generate changelog.md after execution. |

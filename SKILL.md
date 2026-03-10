@@ -88,6 +88,10 @@ If there are more than 100 files, ask the user to confirm before proceeding or s
   2. Merge all batch results into a single unified rename map before presenting to the user.
 - Sub-agent batches may run in parallel (up to 4 concurrent batches).
 - Each batch must return its partial rename map as JSON for merging.
+- **Batch merge deduplication** — after merging all batch results, scan for proposed name collisions:
+  1. Group entries by proposed name (case-insensitive).
+  2. For each collision, differentiate by appending a distinguishing attribute (date, parent folder name, or numeric suffix).
+  3. Log resolved collisions in the dry-run output so the user can review.
 
 ### Step 3: Analyze File Contents
 
@@ -114,6 +118,18 @@ If there are more than 100 files, ask the user to confirm before proceeding or s
 
 > Only rename files with clearly broken or meaningless names. If the current name already conveys the file's content reasonably well, **keep it as-is** — even if it doesn't perfectly follow the naming convention format.
 
+**Pre-filter (before content reading)** — to avoid reading hundreds of files unnecessarily, apply a fast name-quality heuristic FIRST:
+
+1. Extract the file's stem (name without extension).
+2. **Skip content reading** (mark as "keep") if the stem contains ≥ 2 meaningful words (not codes/numbers) and no disqualifying patterns.
+3. **Require content reading** only if ANY of the following is true:
+   - Stem is entirely non-alphabetic (hashes, UUIDs, numeric sequences).
+   - Matches auto-generated patterns: `IMG_\d+`, `DSC\d+`, `Screen Shot`, `document\(\d+\)`, `Untitled`, `New File`.
+   - Stem has fewer than 2 alphabetic tokens after stripping numbers and punctuation.
+   - Contains non-allowed language characters (per Step 1).
+
+This pre-filter dramatically reduces content reading for large directories where most files already have decent names.
+
 **Rename criteria (recovery)** — a file is renamed ONLY if ANY of the following is true:
 
 - Name is entirely meaningless (e.g., `IMG_20240315_142356.jpg`, `document(3).pdf`, `a3f8c2.png`).
@@ -129,7 +145,7 @@ For each file, read its content and determine a descriptive name:
 
 Extensions: `.txt`, `.md`, `.json`, `.csv`, `.html`, `.xml`, `.log`, `.yaml`, `.yml`, `.ini`, `.cfg`, `.conf`, `.toml`, etc.
 
-- Read the **first 10%** of the file (by line count or byte size). Minimum: 5 lines. Maximum cap: 200 lines.
+- Read the **first 10%** of the file (by line count or byte size). Minimum: 5 lines. Maximum cap: 200 lines or **4 KB**, whichever comes first.
 - Identify the main topic, purpose, or subject matter from the actual text content.
 - The proposed name must reflect what the text is about, not the file format.
 
@@ -146,7 +162,7 @@ If file content appears garbled or unreadable:
 
 Extensions: `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.hwp`, `.hwpx`
 
-- Extract text from the **first 10% of pages** (minimum: 1 page).
+- Extract text from the **first 10% of pages** (minimum: 1 page, maximum: **8 KB** of extracted text).
 - Read the extracted text and identify the document's subject, title, or purpose.
 - **`.hwpx`** files are ZIP archives containing XML — unzip and parse `Contents/section*.xml` to extract body text.
 - **`.hwp`** files — use `hwp5txt` or `pyhwp` if available; otherwise try `strings` command with Korean encoding.
@@ -200,7 +216,20 @@ Refer to `references/naming-conventions.md` for detailed patterns. Key rules:
 
 ### Step 4: Generate Rename Map (Dry Run)
 
-Build a rename map as JSON and present it to the user:
+Build a rename map as JSON. **When total files exceed 30, use summary-first presentation:**
+
+```
+📊 Rename Summary
+  Rename:  142 files
+  Keep:    358 files (name already descriptive)
+  Unknown:   5 files → _unknown/
+
+  By extension: .pdf (42) · .hwpx (31) · .jpg (28) · .docx (22) · .txt (19)
+
+  [Show full list]  [Show by folder]  [Show renames only]
+```
+
+When the user requests details (or total files ≤ 30), show the full rename map:
 
 ```
 Current Name                    → Proposed Name
@@ -241,9 +270,14 @@ This creates `<target-dir>/.file-organizer-map.json` so that even if execution i
 After the rollback map is saved:
 
 1. Rename files one by one.
-2. Report progress and any errors (e.g., name conflicts, permission issues).
-3. On name conflict, append a numeric suffix: `report_Q3_2.pdf`.
-4. **Reconcile the rollback map** — after all renames complete, verify the map against actual filesystem state and remove entries for operations that did not execute:
+2. **Progress reporting** — for large batches (50+ files), report progress every 25 files:
+   ```
+   ✅ 25/142 renamed... (17%)
+   ✅ 50/142 renamed... (35%)
+   ```
+3. Report any errors (e.g., name conflicts, permission issues).
+4. On name conflict, append a numeric suffix: `report_Q3_2.pdf`.
+5. **Reconcile the rollback map** — after all renames complete, verify the map against actual filesystem state and remove entries for operations that did not execute:
    ```bash
    bash <skill-path>/scripts/rename-map.sh reconcile <target-dir>
    ```
