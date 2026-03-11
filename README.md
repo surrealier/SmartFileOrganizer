@@ -21,7 +21,7 @@
 - Recursively scans target directories.
 - **Content-based renaming** — reads every file's actual content and generates normalized names from scratch, never relying on original filenames.
 - Encoding fallback detection (UTF-8 → CP949 → Shift_JIS → GB2312 → EUC-KR → Latin-1).
-- **Language preference** — choose allowed languages at start; non-allowed languages are auto-translated (e.g., 日本語 → 한국어).
+- **Language preference** — choose allowed languages at start; non-allowed languages are auto-translated (e.g., Japanese → English).
 - **Rename strictness** — choose between `recovery` (fix only broken names) and `uniform` (standardize all names).
 - **Dataset folder detection** — suspects bulk dataset directories and asks user to confirm skip or include.
 - Supports `.hwpx` (ZIP/XML extraction), `.hwp`, `.pdf`, `.docx`, `.xlsx`, `.pptx` and more.
