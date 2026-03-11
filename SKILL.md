@@ -6,11 +6,13 @@ description: >
   clean up messy file names, organize downloaded files, sort documents by content, rename files that have
   meaningless names (like IMG_20240101.jpg or document(3).pdf), or tidy up any folder where file names
   don't reflect their actual content. Also triggers when users mention bulk renaming, file cleanup,
-  content-based organization, folder restructuring, collecting files by topic or purpose (e.g., "이력 관련
-  자료 모아줘", "gather dataset files", "일회성 자료 판단해줘"), or filtering and grouping files by category.
+  content-based organization, folder restructuring, collecting files by topic or purpose (e.g., "gather
+  resume-related files", "gather dataset files", "identify disposable files"), or filtering and grouping files by category.
 ---
 
 # Smart File Organizer
+
+Reads actual file contents to recover broken filenames, generate meaningful names from scratch, and optionally reorganize files into categorized folders — all with a safe rollback map.
 
 Analyze file contents in a target directory (including all subdirectories), rename files to reflect their content, and optionally reorganize them into a logical folder structure.
 
@@ -28,12 +30,12 @@ Ask the user for:
 
 1. **Target directory** — absolute path to scan (required).
 2. **Mode** — `rename-only`, `full-organize`, or `collect` (default: `rename-only`).
-   - If `collect`: also ask for the **collection query** — what kind of files to gather (e.g., "이력 관련 자료", "dataset files", "일회성 자료").
+   - If `collect`: also ask for the **collection query** — what kind of files to gather (e.g., "resume-related files", "dataset files", "disposable files").
 3. **Allowed languages** — which languages to keep in file names (default: match original or English).
    ```
    Which languages should be used in file names?
      Allowed: (e.g., Korean, English)
-     Others:  auto-translate to an allowed language (e.g., 日本語 → Korean)
+     Others:  auto-translate to an allowed language (e.g., Japanese → English)
    ```
    - When file content is in a non-allowed language, translate the generated name into the user's preferred allowed language.
    - Acronyms and proper nouns are exempt from translation (`IITP`, `YOLOv8`, etc.).
@@ -75,7 +77,7 @@ If the user provides a directory without specifying other options, use defaults 
    - User-confirmed dataset directories are excluded entirely and logged as "dataset directory (user confirmed)".
    - User-confirmed non-dataset directories proceed to normal processing.
 6. Create an inventory with: current path, file size, extension, last modified date.
-7. **Scan directory names** — identify directories with broken or meaningless names (garbled encoding, `New Folder`, `새 폴더`, `Untitled`, numeric-only names like `1`, `2`, `3`). These are included in the rename map alongside files. Directory renames apply in all modes (including `rename-only`), and are executed **after** all file renames to avoid path invalidation.
+7. **Scan directory names** — identify directories with broken or meaningless names (garbled encoding, `New Folder`, `Untitled`, numeric-only names like `1`, `2`, `3`). These are included in the rename map alongside files. Directory renames apply in all modes (including `rename-only`), and are executed **after** all file renames to avoid path invalidation.
    - **File/directory name encoding recovery** — names containing garbled bytes (mojibake) should be decoded by trying `EUC-KR`, `CP949`, `Shift_JIS`, `GB2312`, and `Latin-1` against the raw bytes. If a readable name is recovered, use it as the basis for renaming.
 8. Report the inventory summary to the user:
    - Total file count
@@ -341,13 +343,13 @@ If the user chose `collect`, **skip Steps 3–6** and follow this procedure inst
    - Metadata (extension, parent folder name, dates).
 3. Score each file's relevance and build a **collect list** with confidence levels:
    ```
-   📋 Collect: "이력 관련 자료" → _collected/이력_관련/
+   📋 Collect: "resume-related files" → _collected/resume_related/
      ✅ High (12 files):
-       documents/이력서_홍길동.pdf
+       documents/resume_john-doe.pdf
        career/portfolio_2025.pptx
        ...
      🔶 Medium (5 files):
-       misc/자기소개서_draft.docx
+       misc/cover-letter_draft.docx
        ...
      ❌ Excluded (283 files): not relevant
    ```
